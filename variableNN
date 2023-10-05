@@ -1,0 +1,202 @@
+import numpy as np
+from mnist import MNIST
+import matplotlib.pyplot as plt
+import sys
+
+print("Begin the begin")
+
+def dimString(x):
+    return " is " + str(x.shape[0]) + " by " + str(x.shape[1])
+
+class NeuralNetwork():
+    
+    def __init__(self, arch):
+        self.weights = []
+        self.biases = []
+        self.size = len(arch) - 1
+        # for i in range(1, len(arch)):
+        #     self.weights.append(np.random.rand(arch[i], arch[i - 1]) - 0.5)
+        #     self.biases.append(np.random.rand(arch[i], 1) - 0.5)
+        for i in range(1, len(arch)):
+            fan_in = arch[i-1]
+            fan_out = arch[i]
+            # Xavier initialization for weights
+            limit = np.sqrt(7 / (fan_in + fan_out))
+            self.weights.append(np.random.uniform(-limit, limit, (fan_out, fan_in)))
+            self.biases.append(np.random.rand(arch[i], 1) - 0.5)
+
+    def ReLU(self, x):
+        return np.maximum(x, 0)
+
+    def ReLUd(self, x):
+        return x > 0
+
+    def sigmoid(self, z):
+        # e = np.exp(z)
+        # out = e / np.sum(e)
+        # return out
+        return 1/(1+np.exp(-z))
+
+    def sigmoidd(self, x):
+        return self.sigmoid(x) * (1.0 - self.sigmoid(x))
+    
+    def oneHotter(self, x):
+        new = np.zeros((10,1))
+        new[x] = 1
+        return new
+    
+    def loss(self, y_pred, y_true):
+        epsilon = 1e-7  # small value to avoid division by zero
+        loss = -np.sum(y_true.reshape(len(y_true)) * np.log(y_pred.reshape(len(y_pred)) + epsilon))
+        return loss
+    
+    def forward(self, x):
+        self.zs = []
+        self.aas = [x]
+        for i in range(self.size):
+            self.zs.append(self.weights[i].dot(self.aas[i]) + self.biases[i])
+            if i < self.size - 1:
+                self.aas.append(self.ReLU(self.zs[i]))
+            else:
+                self.aas.append(self.sigmoid(self.zs[i]))
+    
+    def givOut(self, x):
+        self.forward(x.reshape(len(x),1))
+        return self.aas[-1]
+    
+    def backward(self, y):
+        self.dws = [0]*self.size
+        self.dbs = [0]*self.size
+        for i in range(self.size-1,-1,-1):
+            if i == self.size - 1:
+                self.dbs[i] = 2 * (self.aas[i+1] - y) * self.sigmoidd(self.zs[i])
+            else:
+                self.dbs[i] = self.weights[i+1].T.dot(self.dbs[i+1])*self.ReLUd(self.zs[i])
+            self.dws[i] = self.dbs[i].dot(self.aas[i].T)
+
+    def update(self, lr):
+        for i in range(self.size):
+            self.weights[i] -= self.dws[i] * lr
+            self.biases[i] -= self.dbs[i] * lr
+
+    def descend(self, x, y, lr):
+        self.forward(x.reshape(len(x), 1))
+        self.backward(y.reshape(len(y),1))
+        self.update(lr)
+
+    def train(self, x, y, lr, iter):
+        print("Training begun")
+        losses = []
+        loss = 0
+        correct = 0
+        accuracies = []
+        for i in range(iter):
+            self.descend(x[i], y[i], lr)
+            print("Iteration number " + str(i))
+            loss += self.loss(self.aas[-1],self.oneHotter(y[i]))
+            if np.argmax(self.aas[-1]) == y[i]:
+                correct += 1
+            if i % 10 == 0:
+                losses.append(loss/10)
+                accuracies.append(correct/10)
+                loss = 0
+                correct = 0
+        print("Training finished")
+        plt.plot(losses,color='red')
+        plt.plot(accuracies,color='blue')
+        plt.show()
+
+
+    def test(self, x, y, iter):
+        correct = 0
+        loss = 0
+        print("Testing begun")
+        for i in range(iter):
+            self.forward(x[i].reshape(784, 1))
+            #print("Iteration number " + str(i))
+            lossa = self.loss(self.aas[-1],self.oneHotter(y[i]))
+            if np.argmax(self.aas[-1]) == y[i]:
+                correct += 1
+            print("For test #" + str(i))
+            print(self.aas[-1])
+            print(self.oneHotter(y[i]))
+            print(y[i])
+            print(lossa)
+            loss+=lossa
+            print("------------------------------")
+        print("Testing finished")
+        print("The average loss in testing was " + str(loss/iter))
+        return correct/iter 
+    
+def printImg(x):
+    for index, i in enumerate(x):
+            a = i
+            p = "0"
+            if a < 0.33:
+                p = " "
+            elif a < 0.67:
+                p = "1"
+            if ((index + 1) % 28 == 0):
+                print(p)
+            else:
+                sys.stdout.write(p)
+
+def printImgWL(x, los):
+    for index, i in enumerate(x):
+            a = i
+            p = "0"
+            if a < 0.33:
+                p = " "
+            elif a < 0.67:
+                p = "1"
+            if ((index + 1) % 28 == 0):
+                if index >= 29:
+                    sys.stdout.write(p)
+                    print("     " + str(los[index//28 - 1]))
+                else:
+                    print(p)
+            else:
+                sys.stdout.write(p)
+
+discriminator = NeuralNetwork([784,16,10])
+generator = NeuralNetwork([5, 64, 64, 784])
+
+mndata = MNIST("Number_Samples")
+
+iTrain, lTrain = mndata.load_training()
+iTest, lTest = mndata.load_testing()
+
+iTrain = np.array(iTrain)/255
+iTest = np.array(iTest)/255
+
+#nn.train(iTrain, lTrain, 0.005, 60000)
+#print("Accuracy is " + str(nn.test(iTest, lTest, 100) * 100) + "%")
+
+
+
+#train em up
+# print("Ready to go")
+# lossess = []
+# nnarray = []
+# for i in range(1,28):
+#     nn = NeuralNetwork([i*28,32,28])
+#     for j in range(60000):
+#         if lTrain[j] == 5:
+#             nn.descend(iTrain[j][:i*28],iTrain[j][i*28:(i+1)*28],0.01)
+#     lossCount = 0
+#     for j in range(1000):
+#         lossCount += nn.loss(nn.givOut(iTest[j][:i*28]),iTest[j][i*28:(i+1)*28])
+#     nnarray.append(nn)
+#     lossess.append(lossCount/1000)
+#     print("Neural network #" + str(i) + " is finished")
+
+# #get answer
+# print("Getting answer")
+# ans = np.zeros((28,1))
+# for index, i in enumerate(nnarray):
+#     ans = np.append(ans, i.givOut(ans))
+# print("Printing")
+# #printImg(ans)
+# printImgWL(ans, lossess)
+# print(np.mean(lossess))
+
