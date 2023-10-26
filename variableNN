@@ -175,28 +175,28 @@ iTest = np.array(iTest)/255
 
 
 #train em up
-# print("Ready to go")
-# lossess = []
-# nnarray = []
-# for i in range(1,28):
-#     nn = NeuralNetwork([i*28,32,28])
-#     for j in range(60000):
-#         if lTrain[j] == 5:
-#             nn.descend(iTrain[j][:i*28],iTrain[j][i*28:(i+1)*28],0.01)
-#     lossCount = 0
-#     for j in range(1000):
-#         lossCount += nn.loss(nn.givOut(iTest[j][:i*28]),iTest[j][i*28:(i+1)*28])
-#     nnarray.append(nn)
-#     lossess.append(lossCount/1000)
-#     print("Neural network #" + str(i) + " is finished")
+print("Ready to go")
+lossess = []
+nnarray = []
+for i in range(1,28):
+    nn = NeuralNetwork([i*28,32,28])
+    for j in range(60000):
+        if lTrain[j] == 5:
+            nn.descend(iTrain[j][:i*28],iTrain[j][i*28:(i+1)*28],0.01)
+    lossCount = 0
+    for j in range(1000):
+        lossCount += nn.loss(nn.givOut(iTest[j][:i*28]),iTest[j][i*28:(i+1)*28])
+    nnarray.append(nn)
+    lossess.append(lossCount/1000)
+    print("Neural network #" + str(i) + " is finished")
 
-# #get answer
-# print("Getting answer")
-# ans = np.zeros((28,1))
-# for index, i in enumerate(nnarray):
-#     ans = np.append(ans, i.givOut(ans))
-# print("Printing")
-# #printImg(ans)
-# printImgWL(ans, lossess)
-# print(np.mean(lossess))
+#get answer
+print("Getting answer")
+ans = np.zeros((28,1))
+for index, i in enumerate(nnarray):
+    ans = np.append(ans, i.givOut(ans))
+print("Printing")
+#printImg(ans)
+printImgWL(ans, lossess)
+print(np.mean(lossess))
 
